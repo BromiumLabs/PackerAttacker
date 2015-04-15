@@ -26,3 +26,19 @@
 *.exe
 *.out
 *.app
+
+
+#msvcpp stuff
+*.suo
+*.sdf
+*.opensdf
+*.DMP
+*.ipch
+*.user
+
+*/ipch/*
+*/Debug/*
+*/Release/*
+ipch/*
+Debug/*
+Release/*
