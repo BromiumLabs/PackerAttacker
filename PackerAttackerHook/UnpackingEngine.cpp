@@ -204,7 +204,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
         *OldProtection = _oldProtection;
 
     if (ret == 0 && this->hooksReady)
-        Logger::getInstance()->write("NtProtectVirtualMemory(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x) (PID is %d)\n", process, (DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, OldProtection, GetProcessId(process));
+        Logger::getInstance()->write("NtProtectVirtualMemory(TargetPID %d, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", GetProcessId(process), (DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, OldProtection);
 
     if (ret == 0 && this->hooksReady && (process == INVALID_HANDLE_VALUE || GetProcessId(process) == this->processID))
     {
@@ -391,6 +391,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtResumeThread(HANDLE thread, PULONG suspendC
 
 long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
 {
+    // ref: https://msdn.microsoft.com/en-us/library/windows/desktop/aa363082(v=vs.85).aspx
     if (info->ExceptionRecord->ExceptionCode != STATUS_ACCESS_VIOLATION)
         return EXCEPTION_CONTINUE_SEARCH; /* only worried about access violations */
 
