@@ -124,7 +124,7 @@ void UnpackingEngine::startTrackingPEMemoryBlocks()
 
         this->writeablePEBlocks.startTracking(destination, size, oldProtection);
 
-        Logger::getInstance()->write("Tracking PE section %s at 0x%08x to 0x%08x (char: 0x%08x)", sectionHeader->Name, destination, destination+size, sectionHeader->Characteristics);
+        Logger::getInstance()->write("Placed hook on PE section %s at 0x%08x to 0x%08x (char: 0x%08x)", sectionHeader->Name, destination, destination+size, sectionHeader->Characteristics);
     }
 
 }
@@ -222,7 +222,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
             /* this is a PE section being set to writeable, track it */
             this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
             this->writeablePEBlocks.startTracking((DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection);
-            Logger::getInstance()->write("Tracking PE section at 0x%08x", (DWORD)*baseAddress);
+            Logger::getInstance()->write("Placed write hook on PE section at 0x%08x", (DWORD)*baseAddress);
         }
         else if (IS_EXECUTABLE_PROT(newProtection))
         {
@@ -231,6 +231,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
             {
                 this->executableBlocks.startTracking((DWORD)*baseAddress, (DWORD)*numberOfBytes, (DWORD)newProtection);
                 this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_EXECUTABLE_PROT(newProtection), &_oldProtection);
+                Logger::getInstance()->write("Placed execution hook on 0x%08x", (DWORD)*baseAddress);
             }
         }
         else
@@ -238,7 +239,10 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
             /* something is trying to remove execute from the page. if we're tracking it, we can stop */
             auto it = this->executableBlocks.findTracked((DWORD)*baseAddress, (DWORD)*numberOfBytes);
             if (it != this->executableBlocks.nullMarker())
+            {
                 this->executableBlocks.stopTracking(it);
+                Logger::getInstance()->write("Removed execution hook on 0x%08x", (DWORD)*baseAddress);
+            }
         }
     }
 
