@@ -209,7 +209,6 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
                 it->neededProtection = newProtection;
                 this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
             }
-
         }
         else if (IS_EXECUTABLE_PROT(newProtection))
         {
@@ -220,12 +219,18 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
                 this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_EXECUTABLE_PROT(newProtection), &_oldProtection);
             }
         }
-        else if (!IS_EXECUTABLE_PROT(newProtection))
+        else
         {
             /* something is trying to remove execute from the page. if we're tracking it, we can stop */
             auto it = this->executableBlocks.findTracked((DWORD)*baseAddress, (DWORD)*numberOfBytes);
             if (it != this->executableBlocks.nullMarker())
                 this->executableBlocks.stopTracking(it);
+            else
+            {
+                /* we're not tracking it at all, should we be? Making a non-writeable page writeable indicates code modification */
+                if (IS_WRITEABLE_PROT(newProtection) && !IS_WRITEABLE_PROT(_oldProtection))
+                    this->writeablePEBlocks.startTracking((DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection);
+            }
         }
     }
 
