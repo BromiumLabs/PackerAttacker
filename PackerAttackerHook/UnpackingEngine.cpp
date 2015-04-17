@@ -124,7 +124,7 @@ void UnpackingEngine::startTrackingPEMemoryBlocks()
 
         this->writeablePEBlocks.startTracking(destination, size, oldProtection);
 
-        Logger::getInstance()->write("Found writeable-executable section %s at 0x%08x to 0x%08x (char: 0x%08x)", sectionHeader->Name, destination, destination+size, sectionHeader->Characteristics);
+        Logger::getInstance()->write("Tracking PE section %s at 0x%08x to 0x%08x (char: 0x%08x)", sectionHeader->Name, destination, destination+size, sectionHeader->Characteristics);
     }
 
 }
@@ -239,6 +239,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
                 {
                     this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
                     this->writeablePEBlocks.startTracking((DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection);
+                    Logger::getInstance()->write("Tracking PE section at 0x%08x", (DWORD)*baseAddress);
                 }
             }
         }
@@ -255,7 +256,7 @@ NTSTATUS UnpackingEngine::onNtWriteVirtualMemory(HANDLE process, PVOID baseAddre
     auto ret = this->origNtWriteVirtualMemory(process, baseAddress, buffer, numberOfBytes, numberOfBytesWritten);
 
     if (this->hooksReady)
-        Logger::getInstance()->write("PST-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x) RET: 0x%08x\n", GetProcessId(process), (numberOfBytesWritten) ? *numberOfBytesWritten : numberOfBytes, numberOfBytes, ret);
+        Logger::getInstance()->write("PST-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x) RET: 0x%08x\n", GetProcessId(process), baseAddress, (numberOfBytesWritten) ? *numberOfBytesWritten : numberOfBytes, numberOfBytes, ret);
 
     if (ret == 0 && this->hooksReady)
     {
