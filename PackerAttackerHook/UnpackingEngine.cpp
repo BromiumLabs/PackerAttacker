@@ -199,7 +199,19 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
     if (ret == 0 && this->hooksReady && (process == INVALID_HANDLE_VALUE || GetProcessId(process) == this->processID))
     {
         /* this block is on our process */
-        if (IS_EXECUTABLE_PROT(newProtection))
+
+        auto it = this->writeablePEBlocks.findTracked((DWORD)*baseAddress, (DWORD)*numberOfBytes);
+        if (it != this->writeablePEBlocks.nullMarker())
+        {
+            /* this is a PE section that we're currently tracking, let's make sure it stays that way */
+            if (IS_WRITEABLE_PROT(newProtection))
+            {
+                it->neededProtection = newProtection;
+                this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
+            }
+
+        }
+        else if (IS_EXECUTABLE_PROT(newProtection))
         {
             /* page was set to executable, track the page and remove executable rights */
             if (!this->blacklistedBlocks.isTracked((DWORD)*baseAddress, (DWORD)*numberOfBytes))
