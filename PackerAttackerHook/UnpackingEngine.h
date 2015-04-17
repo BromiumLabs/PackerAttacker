@@ -31,6 +31,7 @@ private:
     HookingEngine* hooks;
     SyncLock* lock;
 
+    std::vector<std::pair<DWORD, DWORD>> PESections;
     MemoryBlockTracker<TrackedMemoryBlock> writeablePEBlocks;
     MemoryBlockTracker<TrackedMemoryBlock> executableBlocks;
     MemoryBlockTracker<TrackedMemoryBlock> blacklistedBlocks;
@@ -38,6 +39,7 @@ private:
     std::map<DWORD, DWORD> suspendedThreads;
 
     void startTrackingPEMemoryBlocks();
+    bool isPEMemory(DWORD address);
     void startTrackingRemoteMemoryBlock(DWORD pid, DWORD baseAddress, DWORD size, unsigned char* data);
     void dumpRemoteMemoryBlocks();
     void dumpMemoryBlock(TrackedMemoryBlock block, DWORD ep);

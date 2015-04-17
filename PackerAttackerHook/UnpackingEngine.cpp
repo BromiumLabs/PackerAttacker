@@ -105,6 +105,8 @@ void UnpackingEngine::startTrackingPEMemoryBlocks()
             size = nextSection->VirtualAddress - sectionHeader->VirtualAddress;
         }
 
+        PESections.push_back(std::make_pair(destination, destination + size));
+
         if (!CHECK_FLAG(sectionHeader->Characteristics, CHARACTERISTIC_WRITEABLE))
             continue; /* skip un-writeable sections */
 
@@ -125,6 +127,14 @@ void UnpackingEngine::startTrackingPEMemoryBlocks()
         Logger::getInstance()->write("Found writeable-executable section %s at 0x%08x to 0x%08x (char: 0x%08x)", sectionHeader->Name, destination, destination+size, sectionHeader->Characteristics);
     }
 
+}
+
+bool UnpackingEngine::isPEMemory(DWORD address)
+{
+    for (unsigned int i = 0; i < this->PESections.size(); i++)
+        if (address >= this->PESections[i].first && address <= this->PESections[i].second)
+            return true;
+    return false;
 }
 
 void UnpackingEngine::startTrackingRemoteMemoryBlock(DWORD pid, DWORD baseAddress, DWORD size, unsigned char* data)
@@ -205,10 +215,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
         {
             /* this is a PE section that we're currently tracking, let's make sure it stays that way */
             if (IS_WRITEABLE_PROT(newProtection))
-            {
-                it->neededProtection = newProtection;
                 this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
-            }
         }
         else if (IS_EXECUTABLE_PROT(newProtection))
         {
@@ -225,11 +232,14 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
             auto it = this->executableBlocks.findTracked((DWORD)*baseAddress, (DWORD)*numberOfBytes);
             if (it != this->executableBlocks.nullMarker())
                 this->executableBlocks.stopTracking(it);
-            else
+            else if (this->isPEMemory((DWORD)*baseAddress))
             {
-                /* we're not tracking it at all, should we be? Making a non-writeable page writeable indicates code modification */
+                /* we're not tracking it, and it's memory in the PE header. Let's see if we should track it */
                 if (IS_WRITEABLE_PROT(newProtection) && !IS_WRITEABLE_PROT(_oldProtection))
+                {
+                    this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
                     this->writeablePEBlocks.startTracking((DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection);
+                }
             }
         }
     }
