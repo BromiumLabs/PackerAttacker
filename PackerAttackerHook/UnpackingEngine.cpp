@@ -396,7 +396,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         return EXCEPTION_CONTINUE_SEARCH; /* should have 2 params */
 
     bool isWriteException = (info->ExceptionRecord->ExceptionInformation[0] != 8);
-    DWORD exceptionAddress = (DWORD)info->ExceptionRecord->ExceptionAddress;
+    DWORD exceptionAddress = info->ExceptionRecord->ExceptionInformation[1];//(DWORD)info->ExceptionRecord->ExceptionAddress;
 
     if (isWriteException) /* monitor writes to tracked PE sections */
     {
@@ -404,18 +404,26 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
 
         auto it = this->writeablePEBlocks.findTracked(exceptionAddress, 1);
         if (it == this->writeablePEBlocks.nullMarker())
+        {
+            Logger::getInstance()->write("STATUS_ACCESS_VIOLATION write on 0x%08x not treated as hook!", exceptionAddress);
             return EXCEPTION_CONTINUE_SEARCH; /* we're not tracking the page */
+        }
 
         /* it's a PE section beign tracked */
         /* set the section back to writeable */
         ULONG _oldProtection;
         auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&it->startAddress, (PULONG)&it->size, PAGE_READWRITE, &_oldProtection);
         if (ret != 0)
+        {
+            Logger::getInstance()->write("Failed to removed write hook on 0x%08x!", exceptionAddress);
             return EXCEPTION_CONTINUE_SEARCH; /* couldn't set page back to regular protection, wtf? */
+        }
 
         /* start tracking execution in the section and stop tracking writes */
         this->executableBlocks.startTracking(*it);
         this->writeablePEBlocks.stopTracking(it);
+
+        Logger::getInstance()->write("STATUS_ACCESS_VIOLATION write on 0x%08x triggered write hook!", exceptionAddress);
 
         /* writing to the section should work now */
         return EXCEPTION_CONTINUE_EXECUTION;
@@ -426,19 +434,27 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
 
         auto it = this->executableBlocks.findTracked(exceptionAddress, 1);
         if (it == this->executableBlocks.nullMarker())
+        {
+            Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x not treated as hook!", exceptionAddress);
             return EXCEPTION_CONTINUE_SEARCH; /* we're not tracking the block */
+        }
 
         /* it's an executable block being tracked */
         /* set the block back to executable */
         ULONG _oldProtection;
         auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&it->startAddress, (PULONG)&it->size, (DWORD)it->neededProtection, &_oldProtection);
         if (ret != 0)
-            return EXCEPTION_CONTINUE_SEARCH; /* couldn't set page back to executable, wtf? */ 
+        {
+            Logger::getInstance()->write("Failed to removed execute hook on 0x%08x!", exceptionAddress);
+            return EXCEPTION_CONTINUE_SEARCH; /* couldn't set page back to executable, wtf? */
+        }
 
         /* dump the motherfucker and stop tracking it */
         this->blacklistedBlocks.startTracking(*it);
         this->dumpMemoryBlock(*it, exceptionAddress);
         this->executableBlocks.stopTracking(it);
+
+        Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x triggered execute hook!", exceptionAddress);
 
         /* execution should work now */
         return EXCEPTION_CONTINUE_EXECUTION;
