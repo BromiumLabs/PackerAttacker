@@ -217,6 +217,13 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
             if (IS_WRITEABLE_PROT(newProtection))
                 this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
         }
+        else if (IS_WRITEABLE_PROT(newProtection) && !IS_WRITEABLE_PROT(_oldProtection) && this->isPEMemory((DWORD)*baseAddress)) // newly writeable pe section
+        {
+            /* this is a PE section being set to writeable, track it */
+            this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
+            this->writeablePEBlocks.startTracking((DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection);
+            Logger::getInstance()->write("Tracking PE section at 0x%08x", (DWORD)*baseAddress);
+        }
         else if (IS_EXECUTABLE_PROT(newProtection))
         {
             /* page was set to executable, track the page and remove executable rights */
@@ -232,16 +239,6 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
             auto it = this->executableBlocks.findTracked((DWORD)*baseAddress, (DWORD)*numberOfBytes);
             if (it != this->executableBlocks.nullMarker())
                 this->executableBlocks.stopTracking(it);
-            else if (this->isPEMemory((DWORD)*baseAddress))
-            {
-                /* we're not tracking it, and it's memory in the PE header. Let's see if we should track it */
-                if (IS_WRITEABLE_PROT(newProtection) && !IS_WRITEABLE_PROT(_oldProtection))
-                {
-                    this->origNtProtectVirtualMemory(process, baseAddress, numberOfBytes, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
-                    this->writeablePEBlocks.startTracking((DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection);
-                    Logger::getInstance()->write("Tracking PE section at 0x%08x", (DWORD)*baseAddress);
-                }
-            }
         }
     }
 
