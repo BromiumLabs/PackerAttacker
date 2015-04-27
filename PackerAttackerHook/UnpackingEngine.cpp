@@ -40,6 +40,7 @@ void UnpackingEngine::initialize()
     HOOK_GET_ORIG(this, "ntdll.dll", NtCreateThread);
     HOOK_GET_ORIG(this, "ntdll.dll", NtMapViewOfSection);
     HOOK_GET_ORIG(this, "ntdll.dll", NtResumeThread);
+    HOOK_GET_ORIG(this, "ntdll.dll", NtDelayExecution);
     HOOK_GET_ORIG(this, "Kernel32.dll", CreateProcessInternalW);
 
     Logger::getInstance()->write("Finding original function addresses... DONE");
@@ -56,6 +57,7 @@ void UnpackingEngine::initialize()
         HOOK_SET(this, this->hooks, NtCreateThread);
         HOOK_SET(this, this->hooks, NtMapViewOfSection);
         HOOK_SET(this, this->hooks, NtResumeThread);
+        HOOK_SET(this, this->hooks, NtDelayExecution);
         HOOK_SET(this, this->hooks, CreateProcessInternalW);
     });
 
@@ -388,6 +390,13 @@ NTSTATUS WINAPI UnpackingEngine::onNtResumeThread(HANDLE thread, PULONG suspendC
     }
 
     return this->origNtResumeThread(thread, suspendCount);
+}
+
+NTSTATUS WINAPI UnpackingEngine::onNtDelayExecution(BOOLEAN alertable, PLARGE_INTEGER time)
+{
+    Logger::getInstance()->write("Sleep call detected (Low part: %d, High part: %d).", time->LowPart, time->HighPart);
+
+    return this->origNtDelayExecution(alertable, time);
 }
 
 long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)

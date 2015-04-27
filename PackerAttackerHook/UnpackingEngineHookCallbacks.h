@@ -48,6 +48,12 @@ NTSTATUS WINAPI UnpackingEngine::_onNtResumeThread(HANDLE thread, PULONG suspend
     return UnpackingEngine::getInstance()->onNtResumeThread(thread, suspendCount);
 }
 
+NTSTATUS WINAPI UnpackingEngine::_onNtDelayExecution(BOOLEAN alertable, PLARGE_INTEGER time)
+{
+    auto sg = UnpackingEngine::getInstance()->lock->enterWithScopeGuard();
+    return UnpackingEngine::getInstance()->onNtDelayExecution(alertable, time);
+}
+
 long __stdcall UnpackingEngine::_onShallowException(PEXCEPTION_POINTERS info)
 {
     return UnpackingEngine::getInstance()->onShallowException(info);
