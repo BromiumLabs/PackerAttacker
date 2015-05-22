@@ -80,7 +80,7 @@ private:
     void dumpMemoryBlock(TrackedMemoryBlock block, DWORD ep);
     void dumpMemoryBlock(char* fileName, DWORD size, const unsigned char* data);
     DWORD getProcessIdIfRemote(HANDLE process);
-    ULONG processMemoryBlockFromHook(DWORD address, DWORD size, ULONG newProtection, ULONG oldProtection, bool considerOldProtection);
+    ULONG processMemoryBlockFromHook(const char* source, DWORD address, DWORD size, ULONG newProtection, ULONG oldProtection, bool considerOldProtection);
 
     /* NtProtectVirtualMemory hook */
     HOOK_DEFINE_5(NTSTATUS, NTAPI, NtProtectVirtualMemory, HANDLE, PVOID*, PULONG, ULONG, PULONG);

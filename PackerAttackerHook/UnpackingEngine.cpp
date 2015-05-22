@@ -198,7 +198,7 @@ DWORD UnpackingEngine::getProcessIdIfRemote(HANDLE process)
      return (pid == this->processID) ? 0 : pid;
 }
 
-ULONG UnpackingEngine::processMemoryBlockFromHook(DWORD address, DWORD size, ULONG newProtection, ULONG oldProtection, bool considerOldProtection)
+ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD address, DWORD size, ULONG newProtection, ULONG oldProtection, bool considerOldProtection)
 {
     PVOID _address = (PVOID)address;
     DWORD _size = size;
@@ -219,7 +219,7 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(DWORD address, DWORD size, ULO
         /* this is a PE section being set to writeable, track it */
         this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
         this->writeablePEBlocks.startTracking(address, size, newProtection);
-        Logger::getInstance()->write("Placed write hook on PE section at 0x%08x", address);
+        Logger::getInstance()->write("[%s] Placed write hook on PE section at 0x%08x", source, address);
     }
     else if (IS_EXECUTABLE_PROT(newProtection))
     {
@@ -228,7 +228,7 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(DWORD address, DWORD size, ULO
         {
             this->executableBlocks.startTracking(address, size, (DWORD)newProtection);
             this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_EXECUTABLE_PROT(newProtection), &_oldProtection);
-            Logger::getInstance()->write("Placed execution hook on 0x%08x", address);
+            Logger::getInstance()->write("[%s] Placed execution hook on 0x%08x", source, address);
         }
     }
     else
@@ -238,7 +238,7 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(DWORD address, DWORD size, ULO
         if (it != this->executableBlocks.nullMarker())
         {
             this->executableBlocks.stopTracking(it);
-            Logger::getInstance()->write("Removed execution hook on 0x%08x", address);
+            Logger::getInstance()->write("[%s] Removed execution hook on 0x%08x", source, address);
         }
     }
 
@@ -263,7 +263,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
 
     if (ret == 0 && this->hooksReady && (process == INVALID_HANDLE_VALUE || GetProcessId(process) == this->processID))
     {
-        _oldProtection = this->processMemoryBlockFromHook((DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, *OldProtection, true);
+        _oldProtection = this->processMemoryBlockFromHook("onNtProtectVirtualMemory", (DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, *OldProtection, true);
         if (OldProtection)
             *OldProtection = _oldProtection;
     }
@@ -426,7 +426,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtAllocateVirtualMemory(HANDLE ProcessHandle,
     this->inAllocationHook = false;
 
     if (ret == 0 && this->hooksReady && (ProcessHandle == INVALID_HANDLE_VALUE || GetProcessId(ProcessHandle) == this->processID))
-        this->processMemoryBlockFromHook((DWORD)*BaseAddress, (DWORD)*RegionSize, Protect, NULL, false);
+        this->processMemoryBlockFromHook("onNtAllocateVirtualMemory", (DWORD)*BaseAddress, (DWORD)*RegionSize, Protect, NULL, false);
 
     return ret;
 }
