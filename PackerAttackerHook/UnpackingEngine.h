@@ -79,6 +79,7 @@ private:
     void dumpRemoteMemoryBlocks();
     void dumpMemoryBlock(TrackedMemoryBlock block, DWORD ep);
     void dumpMemoryBlock(char* fileName, DWORD size, const unsigned char* data);
+    bool isSelfProcess(HANDLE process);
     DWORD getProcessIdIfRemote(HANDLE process);
     ULONG processMemoryBlockFromHook(const char* source, DWORD address, DWORD size, ULONG newProtection, ULONG oldProtection, bool considerOldProtection);
 

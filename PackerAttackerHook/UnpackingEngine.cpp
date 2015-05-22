@@ -189,6 +189,11 @@ void UnpackingEngine::dumpMemoryBlock(char* fileName, DWORD size, const unsigned
         Logger::getInstance()->write("Failed to create dump file with name '%s'!", fileName);
 }
 
+bool UnpackingEngine::isSelfProcess(HANDLE process)
+{
+    return (process == 0 || process == INVALID_HANDLE_VALUE || GetProcessId(process) == this->processID);
+}
+
 DWORD UnpackingEngine::getProcessIdIfRemote(HANDLE process)
 {
      if (process == 0 && process == INVALID_HANDLE_VALUE)
@@ -261,7 +266,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
     if (ret == 0 && this->hooksReady)
         Logger::getInstance()->write("NtProtectVirtualMemory(TargetPID %d, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", GetProcessId(process), (DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, OldProtection);
 
-    if (ret == 0 && this->hooksReady && (process == INVALID_HANDLE_VALUE || GetProcessId(process) == this->processID))
+    if (ret == 0 && this->hooksReady && this->isSelfProcess(process))
     {
         _oldProtection = this->processMemoryBlockFromHook("onNtProtectVirtualMemory", (DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, *OldProtection, true);
         if (OldProtection)
@@ -328,7 +333,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtCreateThread(
 
     if (this->hooksReady)
     {
-        if (ProcessHandle == INVALID_HANDLE_VALUE || GetProcessId(ProcessHandle) == this->processID)
+        if (this->isSelfProcess(ProcessHandle))
         {
             /* the thread is in this process, check if it is starting on a tracked executable block */
             auto it = this->executableBlocks.findTracked(ThreadContext->Eip, 1);
@@ -425,7 +430,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtAllocateVirtualMemory(HANDLE ProcessHandle,
     auto ret = this->origNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
     this->inAllocationHook = false;
 
-    if (ret == 0 && this->hooksReady && (ProcessHandle == INVALID_HANDLE_VALUE || GetProcessId(ProcessHandle) == this->processID))
+    if (ret == 0 && this->hooksReady && this->isSelfProcess(ProcessHandle))
         this->processMemoryBlockFromHook("onNtAllocateVirtualMemory", (DWORD)*BaseAddress, (DWORD)*RegionSize, Protect, NULL, false);
 
     return ret;
