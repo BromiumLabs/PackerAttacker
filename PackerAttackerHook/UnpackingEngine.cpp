@@ -215,7 +215,12 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
     {
         /* this is a PE section that we're currently tracking, let's make sure it stays that way */
         if (IS_WRITEABLE_PROT(newProtection))
+        {
             this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
+            Logger::getInstance()->write("[%s] Persisting hook on PE section at 0x%08x - 0x%08x", source, address, address + size);
+        }
+        else
+            Logger::getInstance()->write("[%s] Block detected as writeable PE block, no need to persist hook 0x%08x - 0x%08x", source, address, address + size);
     }
     else if (considerOldProtection && 
             IS_WRITEABLE_PROT(newProtection) &&
@@ -225,7 +230,7 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
         /* this is a PE section being set to writeable, track it */
         this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
         this->writeablePEBlocks.startTracking(address, size, newProtection);
-        Logger::getInstance()->write("[%s] Placed write hook on PE section at 0x%08x", source, address);
+        Logger::getInstance()->write("[%s] Placed write hook on PE section at 0x%08x - 0x%08x", source, address, address + size);
     }
     else if (IS_EXECUTABLE_PROT(newProtection))
     {
@@ -234,8 +239,10 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
         {
             this->executableBlocks.startTracking(address, size, (DWORD)newProtection);
             this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_EXECUTABLE_PROT(newProtection), &_oldProtection);
-            Logger::getInstance()->write("[%s] Placed execution hook on 0x%08x", source, address);
+            Logger::getInstance()->write("[%s] Placed execution hook on 0x%08x - 0x%08x", source, address, address + size);
         }
+        else
+            Logger::getInstance()->write("[%s] Failed to place execution hook on BLACKLISTED BLOCK 0x%08x - 0x%08x", source, address, address + size);
     }
     else
     {
@@ -244,8 +251,11 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
         if (it != this->executableBlocks.nullMarker())
         {
             this->executableBlocks.stopTracking(it);
-            Logger::getInstance()->write("[%s] Removed execution hook on 0x%08x", source, address);
+            Logger::getInstance()->write("[%s] Removed execution hook on 0x%08x - 0x%08x", source, address, address + size);
         }
+        else
+            Logger::getInstance()->write("[%s] No need to hook block 0x%08x - 0x%08x", source, address, address + size);
+
     }
 
     return _oldProtection;
@@ -285,7 +295,7 @@ NTSTATUS UnpackingEngine::onNtWriteVirtualMemory(HANDLE process, PVOID baseAddre
     auto ret = this->origNtWriteVirtualMemory(process, baseAddress, buffer, numberOfBytes, numberOfBytesWritten);
 
     if (this->hooksReady)
-        Logger::getInstance()->write("PST-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x) RET: 0x%08x\n", GetProcessId(process), baseAddress, (numberOfBytesWritten) ? *numberOfBytesWritten : numberOfBytes, numberOfBytes, ret);
+        Logger::getInstance()->write("PST-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x) RET: 0x%08x\n", GetProcessId(process), baseAddress, (numberOfBytesWritten) ? *numberOfBytesWritten : numberOfBytes, ret);
 
     if (ret == 0 && this->hooksReady)
     {
@@ -427,12 +437,22 @@ NTSTATUS WINAPI UnpackingEngine::onNtDelayExecution(BOOLEAN alertable, PLARGE_IN
 
 NTSTATUS WINAPI UnpackingEngine::onNtAllocateVirtualMemory(HANDLE ProcessHandle, PVOID *BaseAddress, ULONG ZeroBits, PULONG RegionSize, ULONG AllocationType, ULONG Protect)
 {
-    this->inAllocationHook = true;
-    auto ret = this->origNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
-    this->inAllocationHook = false;
+    if (this->inAllocationHook)
+        return this->origNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
 
-    if (ret == 0 && this->hooksReady && this->isSelfProcess(ProcessHandle))
-        this->processMemoryBlockFromHook("onNtAllocateVirtualMemory", (DWORD)*BaseAddress, (DWORD)*RegionSize, Protect, NULL, false);
+    this->inAllocationHook = true;
+        if (this->hooksReady)
+            Logger::getInstance()->write("PRE-NtAllocateVirtualMemory(TargetPID %d, Address 0x%08x, Size 0x%08x, Protection 0x%08x)\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (DWORD)*RegionSize, Protect);
+
+        auto ret = this->origNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
+
+        if (this->hooksReady)
+            Logger::getInstance()->write("PST-NtAllocateVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x, Protection 0x%08x) RET: 0x%08x\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (RegionSize) ? *RegionSize : 0, Protect, ret);
+
+
+        if (ret == 0 && this->hooksReady && this->isSelfProcess(ProcessHandle))
+            this->processMemoryBlockFromHook("onNtAllocateVirtualMemory", (DWORD)*BaseAddress, (DWORD)*RegionSize, Protect, NULL, false);
+    this->inAllocationHook = false;
 
     return ret;
 }
