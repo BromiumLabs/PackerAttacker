@@ -42,6 +42,7 @@ void UnpackingEngine::initialize()
     HOOK_GET_ORIG(this, "ntdll.dll", NtMapViewOfSection);
     HOOK_GET_ORIG(this, "ntdll.dll", NtResumeThread);
     HOOK_GET_ORIG(this, "ntdll.dll", NtDelayExecution);
+    HOOK_GET_ORIG(this, "ntdll.dll", NtAllocateVirtualMemory);
     HOOK_GET_ORIG(this, "Kernel32.dll", CreateProcessInternalW);
 
     Logger::getInstance()->write("Finding original function addresses... DONE");
