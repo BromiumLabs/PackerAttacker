@@ -18,6 +18,11 @@
     _orig ## name orig ## name; \
     reT reTm on ## name(arg1, arg2, arg3, arg4, arg5); \
     static reT reTm _on ## name(arg1, arg2, arg3, arg4, arg5);
+#define HOOK_DEFINE_6(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6) \
+    typedef reT (reTm *_orig ## name)(arg1, arg2, arg3, arg4, arg5, arg6); \
+    _orig ## name orig ## name; \
+    reT reTm on ## name(arg1, arg2, arg3, arg4, arg5, arg6); \
+    static reT reTm _on ## name(arg1, arg2, arg3, arg4, arg5, arg6);
 #define HOOK_DEFINE_8(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
     typedef reT (reTm *_orig ## name)(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8); \
     _orig ## name orig ## name; \
@@ -56,7 +61,7 @@ public:
 
 private:
     static UnpackingEngine* instance;
-    bool hooksReady;
+    bool hooksReady, inAllocationHook;
     DWORD processID;
     HookingEngine* hooks;
     SyncLock* lock;
@@ -75,6 +80,7 @@ private:
     void dumpMemoryBlock(TrackedMemoryBlock block, DWORD ep);
     void dumpMemoryBlock(char* fileName, DWORD size, const unsigned char* data);
     DWORD getProcessIdIfRemote(HANDLE process);
+    ULONG processMemoryBlockFromHook(DWORD address, DWORD size, ULONG newProtection, ULONG oldProtection, bool considerOldProtection);
 
     /* NtProtectVirtualMemory hook */
     HOOK_DEFINE_5(NTSTATUS, NTAPI, NtProtectVirtualMemory, HANDLE, PVOID*, PULONG, ULONG, PULONG);
@@ -97,6 +103,8 @@ private:
                 LPSTARTUPINFOW, LPPROCESS_INFORMATION, PHANDLE);
     /* NtDelayExecution hook */
     HOOK_DEFINE_2(NTSTATUS, NTAPI, NtDelayExecution, BOOLEAN, PLARGE_INTEGER);
+    /* NtAllocateVirtualMemory hook */
+    HOOK_DEFINE_6(NTSTATUS, NTAPI, NtAllocateVirtualMemory, HANDLE, PVOID*, ULONG, PULONG, ULONG, ULONG);
 
     /* exception handler for hooking execution on tracked pages */
     long onShallowException(PEXCEPTION_POINTERS info);

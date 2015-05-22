@@ -54,6 +54,12 @@ NTSTATUS WINAPI UnpackingEngine::_onNtDelayExecution(BOOLEAN alertable, PLARGE_I
     return UnpackingEngine::getInstance()->onNtDelayExecution(alertable, time);
 }
 
+NTSTATUS WINAPI UnpackingEngine::_onNtAllocateVirtualMemory(HANDLE ProcessHandle, PVOID *BaseAddress, ULONG ZeroBits, PULONG RegionSize, ULONG AllocationType, ULONG Protect)
+{
+    auto sg = UnpackingEngine::getInstance()->lock->enterWithScopeGuard();
+    return UnpackingEngine::getInstance()->onNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
+}
+
 long __stdcall UnpackingEngine::_onShallowException(PEXCEPTION_POINTERS info)
 {
     return UnpackingEngine::getInstance()->onShallowException(info);
