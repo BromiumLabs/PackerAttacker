@@ -28,6 +28,8 @@ void UnpackingEngine::initialize()
 {
     auto sg = this->lock->enterWithScopeGuard();
 
+    SetProcessDEPPolicy(PROCESS_DEP_ENABLE);
+
     this->processID = GetCurrentProcessId();
 
     char logName[MAX_PATH];
