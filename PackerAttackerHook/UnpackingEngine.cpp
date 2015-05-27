@@ -248,16 +248,9 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
     }
     else
     {
-        /* something is trying to remove execute from the page. if we're tracking it, we can stop */
         auto it = this->executableBlocks.findTracked(address, size);
-        if (it != this->executableBlocks.nullMarker())
-        {
-            this->executableBlocks.stopTracking(it);
-            Logger::getInstance()->write("[%s] Removed execution hook on 0x%08x - 0x%08x", source, address, address + size);
-        }
-        else
+        if (it == this->executableBlocks.nullMarker())
             Logger::getInstance()->write("[%s] No need to hook block 0x%08x - 0x%08x", source, address, address + size);
-
     }
 
     return _oldProtection;
