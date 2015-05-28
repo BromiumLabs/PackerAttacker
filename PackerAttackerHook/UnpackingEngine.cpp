@@ -28,16 +28,27 @@ void UnpackingEngine::initialize()
 {
     auto sg = this->lock->enterWithScopeGuard();
 
-    SetProcessDEPPolicy(PROCESS_DEP_ENABLE);
-
     this->processID = GetCurrentProcessId();
 
+    /* init logger */
     char logName[MAX_PATH];
     sprintf_s<MAX_PATH>(logName, "C:\\dumps\\[%d]_packer_attacker.log", this->processID);
     Logger::getInstance()->initialize(logName);
 
     Logger::getInstance()->write("Starting hooking process...");
 
+    /* get the current DEP state, then make sure DEP is on */
+    DWORD depFlags;
+    BOOL depCantChange;
+    GetProcessDEPPolicy(GetCurrentProcess(), &depFlags, &depCantChange);
+    this->simulateDisabledDEP = (depFlags & PROCESS_DEP_ENABLE) != PROCESS_DEP_ENABLE;
+
+    if (this->simulateDisabledDEP && depCantChange)
+         Logger::getInstance()->write("ERROR: Cannot enable DEP for this process!");
+    else
+        SetProcessDEPPolicy(PROCESS_DEP_ENABLE);
+
+    /* place hooks and track PE section */
     HOOK_GET_ORIG(this, "ntdll.dll", NtProtectVirtualMemory);
     HOOK_GET_ORIG(this, "ntdll.dll", NtWriteVirtualMemory);
     HOOK_GET_ORIG(this, "ntdll.dll", NtCreateThread);
@@ -501,8 +512,24 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         auto it = this->executableBlocks.findTracked(exceptionAddress, 1);
         if (it == this->executableBlocks.nullMarker())
         {
-            Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x not treated as hook!", exceptionAddress);
-            return EXCEPTION_CONTINUE_SEARCH; /* we're not tracking the block */
+            /* this isn't memory we've hooked, so this is an unrelated DEP exception.
+            If the process didn't initially have DEP enabled, we should fix the protection so it can execute.
+            If the process did initially have DEP enabled, we should let it crash as normal */
+            if (this->simulateDisabledDEP)
+            {
+                ULONG _oldProtection;
+                DWORD _address = exceptionAddress;
+                ULONG _size = 1;
+                auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&_address, (PULONG)&_size, PAGE_EXECUTE_READWRITE, &_oldProtection);
+                Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x (NOT A HOOK). Simulating DEP-lessness from 0x%08x to 0x%08x.", exceptionAddress, _address, _address + _size);
+
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+            else
+            {
+                Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x (NOT A HOOK). No need to simulate DEP-lessness.", exceptionAddress);
+                return EXCEPTION_CONTINUE_SEARCH;
+            }
         }
 
         /* it's an executable block being tracked */

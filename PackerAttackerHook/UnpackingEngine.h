@@ -61,7 +61,7 @@ public:
 
 private:
     static UnpackingEngine* instance;
-    bool hooksReady, inAllocationHook;
+    bool hooksReady, inAllocationHook, simulateDisabledDEP;
     DWORD processID;
     HookingEngine* hooks;
     SyncLock* lock;
