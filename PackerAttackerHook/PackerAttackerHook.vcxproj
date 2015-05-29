@@ -81,16 +81,19 @@
       </PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="StackWalker.cpp" />
     <ClCompile Include="SyncLock.cpp" />
     <ClCompile Include="UnpackingEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DebugStackTracer.h" />
     <ClInclude Include="detours.h" />
     <ClInclude Include="HookingEngine.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="ntdefs.h" />
     <ClInclude Include="SharedMemoryArray.h" />
+    <ClInclude Include="StackWalker.h" />
     <ClInclude Include="SyncLock.h" />
     <ClInclude Include="TrackedMemoryBlock.h" />
     <ClInclude Include="UnpackingEngine.h" />

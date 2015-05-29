@@ -2,10 +2,12 @@
 #include "UnpackingEngineHookCallbacks.h"
 #include "Memory.h"
 #include "Logger.h"
+#include "DebugStackTracer.h"
 
 #include <fstream>
 #include <sstream>
 #include <assert.h>
+#include <algorithm>
 
 UnpackingEngine* UnpackingEngine::instance = NULL;
 
@@ -15,6 +17,7 @@ UnpackingEngine::UnpackingEngine(void)
     this->lock = new SyncLock();
     this->hooksReady = false;
     this->inAllocationHook = false;
+    this->bypassHooks = false;
 }
 
 
@@ -613,6 +616,9 @@ long UnpackingEngine::onDeepException(PEXCEPTION_POINTERS info)
     else if (info->ExceptionRecord->ExceptionCode == STATUS_ASSERTION_FAILURE) exceptionDesc = "STATUS_ASSERTION_FAILURE";
 
 
+    auto sg = this->lock->enterWithScopeGuard();
+    this->ignoreHooks(true);
+
     Logger::getInstance()->write("POSSIBLE CRASH DETECTED!");
     Logger::getInstance()->write("\t%s at 0x%08x", exceptionDesc, info->ExceptionRecord->ExceptionAddress);
     Logger::getInstance()->write("\t%s", exceptionDesc);
@@ -629,6 +635,36 @@ long UnpackingEngine::onDeepException(PEXCEPTION_POINTERS info)
     Logger::getInstance()->write("\tESP: 0x%08x", info->ContextRecord->Esp);
     Logger::getInstance()->write("\tEIP: 0x%08x", info->ContextRecord->Eip);
     Logger::getInstance()->write("\tEFLAGS: 0x%08x", info->ContextRecord->EFlags);
+
+    DebugStackTracer stackTracer(
+        [=](std::string line) -> void
+        {
+            bool ignore =
+                    (line.find("ERROR:") != std::string::npos) ||
+					(line.find("SymType:") != std::string::npos)||
+					(line.find("SymInit:") != std::string::npos)||
+					(line.find("OS-Version:") != std::string::npos);
+
+            auto replaceString = [=](std::string& text, const std::string key, const std::string value) -> void
+            {
+	            if (value.find(key) != std::string::npos)
+		            return;
+	            for (std::string::size_type keyStart = text.find(key); keyStart != std::string::npos; keyStart = text.find(key))
+		            text.replace(keyStart, key.size(), value);
+            };
+
+        	if (!ignore)
+            {
+                replaceString(line, ": (filename not available)", "");
+		        replaceString(line, ": (function-name not available)", "");
+                Logger::getInstance()->write("\t\t%s", line.c_str());
+            }
+        }
+    );
+
+    Logger::getInstance()->write("\tStack Trace:");
+    stackTracer.ShowCallstack(GetCurrentThread(), info->ContextRecord);
+    this->ignoreHooks(false);
 
 
     return EXCEPTION_CONTINUE_SEARCH;
