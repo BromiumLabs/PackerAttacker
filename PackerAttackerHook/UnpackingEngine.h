@@ -7,37 +7,17 @@
 #include <Windows.h>
 #include <map>
 
-
-#define HOOK_DEFINE_2(reT, reTm, name, arg1, arg2) \
-    typedef reT (reTm *_orig ## name)(arg1, arg2); \
+#define _HOOK_DEFINE_INTERNAL(reT, reTm, name, args) \
+    typedef reT (reTm *_orig ## name) args; \
     _orig ## name orig ## name; \
-    __declspec(dllexport) reT reTm on ## name(arg1, arg2); \
-    __declspec(dllexport) static reT reTm _on ## name(arg1, arg2);
-#define HOOK_DEFINE_5(reT, reTm, name, arg1, arg2, arg3, arg4, arg5) \
-    typedef reT (reTm *_orig ## name)(arg1, arg2, arg3, arg4, arg5); \
-    _orig ## name orig ## name; \
-    __declspec(dllexport) reT reTm on ## name(arg1, arg2, arg3, arg4, arg5); \
-    __declspec(dllexport) static reT reTm _on ## name(arg1, arg2, arg3, arg4, arg5);
-#define HOOK_DEFINE_6(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6) \
-    typedef reT (reTm *_orig ## name)(arg1, arg2, arg3, arg4, arg5, arg6); \
-    _orig ## name orig ## name; \
-    __declspec(dllexport) reT reTm on ## name(arg1, arg2, arg3, arg4, arg5, arg6); \
-    __declspec(dllexport) static reT reTm _on ## name(arg1, arg2, arg3, arg4, arg5, arg6);
-#define HOOK_DEFINE_8(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
-    typedef reT (reTm *_orig ## name)(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8); \
-    _orig ## name orig ## name; \
-    __declspec(dllexport) reT reTm on ## name(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8); \
-    __declspec(dllexport) static reT reTm _on ## name(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-#define HOOK_DEFINE_10(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) \
-    typedef reT (reTm *_orig ## name)(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10); \
-    _orig ## name orig ## name; \
-    __declspec(dllexport) reT reTm on ## name(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10); \
-    __declspec(dllexport) static reT reTm _on ## name(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
-#define HOOK_DEFINE_12(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12) \
-    typedef reT (reTm *_orig ## name)(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12); \
-    _orig ## name orig ## name; \
-    __declspec(dllexport) reT reTm on ## name(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12); \
-    __declspec(dllexport) static reT reTm _on ## name(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
+    __declspec(dllexport) reT reTm on ## name args; \
+    __declspec(dllexport) static reT reTm _on ## name args;
+#define HOOK_DEFINE_2(reT, reTm, name, arg1, arg2) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2));
+#define HOOK_DEFINE_5(reT, reTm, name, arg1, arg2, arg3, arg4, arg5) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5));
+#define HOOK_DEFINE_6(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6));
+#define HOOK_DEFINE_8(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8));
+#define HOOK_DEFINE_10(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10));
+#define HOOK_DEFINE_12(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12));
 
 #define HOOK_GET_ORIG(object, library, name) object->orig ## name = (_orig ## name)GetProcAddress(LoadLibraryA(library), #name); assert(object->orig ## name);
 #define HOOK_SET(object, hooks, name) hooks->placeHook(&(PVOID&)object->orig ## name, &_on ## name);
