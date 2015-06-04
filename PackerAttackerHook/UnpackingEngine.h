@@ -7,17 +7,29 @@
 #include <Windows.h>
 #include <map>
 
-#define _HOOK_DEFINE_INTERNAL(reT, reTm, name, args) \
-    typedef reT (reTm *_orig ## name) args; \
-    _orig ## name orig ## name; \
-    __declspec(dllexport) reT reTm on ## name args; \
-    __declspec(dllexport) static reT reTm _on ## name args;
-#define HOOK_DEFINE_2(reT, reTm, name, arg1, arg2) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2));
-#define HOOK_DEFINE_5(reT, reTm, name, arg1, arg2, arg3, arg4, arg5) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5));
-#define HOOK_DEFINE_6(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6));
-#define HOOK_DEFINE_8(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8));
-#define HOOK_DEFINE_10(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10));
-#define HOOK_DEFINE_12(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12));
+#define _HOOK_DEFINE_INTERNAL(reT, reTm, name, args, argnames) \
+    typedef reT (reTm *_orig ## name) args; /* define the function prototype */ \
+    _orig ## name orig ## name; /* create a pointer to the original function */ \
+    __declspec(dllexport) reT reTm on ## name args; /* declare the member-fucntion that will be called internal to the class */ \
+    __declspec(dllexport) static reT reTm _on ## name args /* declare the static function that acts as a hook callback and forwards the call into the member function */ \
+    { \
+        auto sg = getInstance()->lock->enterWithScopeGuard(); \
+        if (getInstance()->shouldIgnoreHooks()) \
+            return getInstance()->orig ## name argnames; \
+        else \
+            return getInstance()->on ## name argnames; \
+    }
+
+#define HOOK_DEFINE_1(reT, reTm, name, arg1) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1), (a1));
+#define HOOK_DEFINE_2(reT, reTm, name, arg1, arg2) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2), (a1, a2));
+#define HOOK_DEFINE_3(reT, reTm, name, arg1, arg2, arg3) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3), (a1, a2, a3));
+#define HOOK_DEFINE_4(reT, reTm, name, arg1, arg2, arg3, arg4) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3, arg4 a4), (a1, a2, a3, a4));
+#define HOOK_DEFINE_5(reT, reTm, name, arg1, arg2, arg3, arg4, arg5) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3, arg4 a4, arg5 a5), (a1, a2, a3, a4, a5));
+#define HOOK_DEFINE_6(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3, arg4 a4, arg5 a5, arg6 a6), (a1, a2, a3, a4, a5, a6));
+#define HOOK_DEFINE_7(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3, arg4 a4, arg5 a5, arg6 a6, arg7 a7), (a1, a2, a3, a4, a5, a6, a7));
+#define HOOK_DEFINE_8(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3, arg4 a4, arg5 a5, arg6 a6, arg7 a7, arg8 a8), (a1, a2, a3, a4, a5, a6, a7, a8));
+#define HOOK_DEFINE_10(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3, arg4 a4, arg5 a5, arg6 a6, arg7 a7, arg8 a8, arg9 a9, arg10 a10), (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10));
+#define HOOK_DEFINE_12(reT, reTm, name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3, arg4 a4, arg5 a5, arg6 a6, arg7 a7, arg8 a8, arg9 a9, arg10 a10, arg11 a11, arg12 a12), (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12));
 
 #define HOOK_GET_ORIG(object, library, name) object->orig ## name = (_orig ## name)GetProcAddress(LoadLibraryA(library), #name); assert(object->orig ## name);
 #define HOOK_SET(object, hooks, name) hooks->placeHook(&(PVOID&)object->orig ## name, &_on ## name);
@@ -91,11 +103,17 @@ private:
 
     /* exception handler for hooking execution on tracked pages */
     long onShallowException(PEXCEPTION_POINTERS info);
-    static long __stdcall _onShallowException(PEXCEPTION_POINTERS info);
+    static long __stdcall _onShallowException(PEXCEPTION_POINTERS info)
+    {
+        return UnpackingEngine::getInstance()->onShallowException(info);
+    }
 
     /* exception handler for detecting crashes */
     long onDeepException(PEXCEPTION_POINTERS info);
-    static long __stdcall _onDeepException(PEXCEPTION_POINTERS info);
+    static long __stdcall _onDeepException(PEXCEPTION_POINTERS info)
+    {
+        return UnpackingEngine::getInstance()->onDeepException(info);
+    }
 
 };
 

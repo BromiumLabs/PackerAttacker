@@ -41,9 +41,6 @@
     <ClInclude Include="UnpackingEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="UnpackingEngineHookCallbacks.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="TrackedMemoryBlock.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -97,7 +97,6 @@
     <ClInclude Include="SyncLock.h" />
     <ClInclude Include="TrackedMemoryBlock.h" />
     <ClInclude Include="UnpackingEngine.h" />
-    <ClInclude Include="UnpackingEngineHookCallbacks.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
