@@ -3,6 +3,13 @@
 #include <sstream>
 #include <string>
 
+#define _LOG_BASE_ __FUNCTION__, __LINE__
+#define LOG_ERROR "%s ERROR %s (%d) ", _LOG_BASE_
+#define LOG_INFO  "%s INFO  %s (%d) ", _LOG_BASE_
+#define LOG_WARN  "%s WARN  %s (%d) ", _LOG_BASE_
+#define LOG_APPENDLINE "                            ", _LOG_BASE_
+
+class SyncLock;
 class Logger
 {
 public:
@@ -19,13 +26,14 @@ public:
     void initialize(std::string fileName);
     void uninitialize();
 
-    void write(std::string line);
-    void write(const char* format, ...);
+    void write(const char* prefixFormat, const char* function, int lineNumber, std::string line);
+    void write(const char* prefixFormat, const char* function, int lineNumber, const char* format, ...);
 
 private:
     static Logger* instance;
     std::fstream* logFile;
+	SyncLock* lock;
 
-    void writePrefix();
+    void writePrefix(const char* prefixFormat, const char* function, int lineNumber);
 };
 

@@ -38,7 +38,7 @@ void UnpackingEngine::initialize()
     sprintf_s<MAX_PATH>(logName, "C:\\dumps\\[%d]_packer_attacker.log", this->processID);
     Logger::getInstance()->initialize(logName);
 
-    Logger::getInstance()->write("Starting hooking process...");
+    Logger::getInstance()->write(LOG_INFO, "Starting hooking process...");
 
     /* get the current DEP state, then make sure DEP is on */
     DWORD depFlags;
@@ -47,7 +47,7 @@ void UnpackingEngine::initialize()
     this->simulateDisabledDEP = (depFlags & PROCESS_DEP_ENABLE) != PROCESS_DEP_ENABLE;
 
     if (this->simulateDisabledDEP && depCantChange)
-         Logger::getInstance()->write("ERROR: Cannot enable DEP for this process!");
+         Logger::getInstance()->write(LOG_ERROR, "Cannot enable DEP for this process!");
     else
         SetProcessDEPPolicy(PROCESS_DEP_ENABLE);
 
@@ -61,11 +61,11 @@ void UnpackingEngine::initialize()
     HOOK_GET_ORIG(this, "ntdll.dll", NtAllocateVirtualMemory);
     HOOK_GET_ORIG(this, "Kernel32.dll", CreateProcessInternalW);
 
-    Logger::getInstance()->write("Finding original function addresses... DONE");
+    Logger::getInstance()->write(LOG_INFO, "Finding original function addresses... DONE");
 
     this->startTrackingPEMemoryBlocks();
 
-    Logger::getInstance()->write("Tracking PE memory blocks... DONE");
+    Logger::getInstance()->write(LOG_INFO, "Tracking PE memory blocks... DONE");
 
     this->hooks->doTransaction([=](){
         this->hooks->placeShallowExceptionHandlerHook(&UnpackingEngine::_onShallowException);
@@ -80,8 +80,8 @@ void UnpackingEngine::initialize()
         HOOK_SET(this, this->hooks, CreateProcessInternalW);
     });
 
-    Logger::getInstance()->write("Placing hooks... DONE");
-    Logger::getInstance()->write("Hooks ready!");
+    Logger::getInstance()->write(LOG_INFO, "Placing hooks... DONE");
+    Logger::getInstance()->write(LOG_INFO, "Hooks ready!");
 
     hooksReady = true;
 }
@@ -111,7 +111,7 @@ void UnpackingEngine::startTrackingPEMemoryBlocks()
     auto baseOfData = MakePointer<DWORD, HMODULE>((HMODULE)mainModule, ntHeaders->OptionalHeader.BaseOfData);
     auto entryPoint = MakePointer<DWORD, HMODULE>((HMODULE)mainModule, ntHeaders->OptionalHeader.AddressOfEntryPoint);
 
-    Logger::getInstance()->write("PE HEADER SAYS\n\tCode: 0x%0x\n\tData: 0x%0x\n\tEP: 0x%0x", baseOfCode, baseOfData, entryPoint);
+    Logger::getInstance()->write(LOG_INFO, "PE HEADER SAYS\n\tCode: 0x%0x\n\tData: 0x%0x\n\tEP: 0x%0x", baseOfCode, baseOfData, entryPoint);
  
 
     bool eipAlreadyIgnored = false;
@@ -139,13 +139,13 @@ void UnpackingEngine::startTrackingPEMemoryBlocks()
         auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&destination, (PULONG)&size, PAGE_EXECUTE_READ, &oldProtection);
         if (ret != 0)
         {
-            Logger::getInstance()->write("Failed to remove execution rights from %s at 0x%08x (char: 0x%08x). GetLastError() == %d |  RET == 0x%08x", sectionHeader->Name, destination, sectionHeader->Characteristics, GetLastError(), ret);
+            Logger::getInstance()->write(LOG_ERROR, "Failed to remove execution rights from %s at 0x%08x (char: 0x%08x). GetLastError() == %d |  RET == 0x%08x", sectionHeader->Name, destination, sectionHeader->Characteristics, GetLastError(), ret);
             continue; /* failed to remove write privs ;( */
         }
 
         this->writeablePEBlocks.startTracking(destination, size, oldProtection);
 
-        Logger::getInstance()->write("Placed hook on PE section %s at 0x%08x to 0x%08x (char: 0x%08x)", sectionHeader->Name, destination, destination+size, sectionHeader->Characteristics);
+        Logger::getInstance()->write(LOG_INFO, "Placed hook on PE section %s at 0x%08x to 0x%08x (char: 0x%08x)", sectionHeader->Name, destination, destination+size, sectionHeader->Characteristics);
     }
 
 }
@@ -203,7 +203,7 @@ void UnpackingEngine::dumpMemoryBlock(char* fileName, DWORD size, const unsigned
         file.close();
     }
     else
-        Logger::getInstance()->write("Failed to create dump file with name '%s'!", fileName);
+        Logger::getInstance()->write(LOG_ERROR, "Failed to create dump file with name '%s'!", fileName);
 }
 
 bool UnpackingEngine::isSelfProcess(HANDLE process)
@@ -233,10 +233,10 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
         if (IS_WRITEABLE_PROT(newProtection))
         {
             this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
-            Logger::getInstance()->write("[%s] Persisting hook on PE section at 0x%08x - 0x%08x", source, address, address + size);
+            Logger::getInstance()->write(LOG_INFO, "[%s] Persisting hook on PE section at 0x%08x - 0x%08x", source, address, address + size);
         }
         else
-            Logger::getInstance()->write("[%s] Block detected as writeable PE block, no need to persist hook 0x%08x - 0x%08x", source, address, address + size);
+            Logger::getInstance()->write(LOG_INFO, "[%s] Block detected as writeable PE block, no need to persist hook 0x%08x - 0x%08x", source, address, address + size);
     }
     else if (considerOldProtection && 
             IS_WRITEABLE_PROT(newProtection) &&
@@ -246,7 +246,7 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
         /* this is a PE section being set to writeable, track it */
         this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_WRITEABLE_PROT(newProtection), &_oldProtection);
         this->writeablePEBlocks.startTracking(address, size, newProtection);
-        Logger::getInstance()->write("[%s] Placed write hook on PE section at 0x%08x - 0x%08x", source, address, address + size);
+        Logger::getInstance()->write(LOG_INFO, "[%s] Placed write hook on PE section at 0x%08x - 0x%08x", source, address, address + size);
     }
     else if (IS_EXECUTABLE_PROT(newProtection))
     {
@@ -255,16 +255,16 @@ ULONG UnpackingEngine::processMemoryBlockFromHook(const char* source, DWORD addr
         {
             this->executableBlocks.startTracking(address, size, (DWORD)newProtection);
             this->origNtProtectVirtualMemory(GetCurrentProcess(), &_address, &_size, REMOVE_EXECUTABLE_PROT(newProtection), &_oldProtection);
-            Logger::getInstance()->write("[%s] Placed execution hook on 0x%08x - 0x%08x", source, address, address + size);
+            Logger::getInstance()->write(LOG_INFO, "[%s] Placed execution hook on 0x%08x - 0x%08x", source, address, address + size);
         }
         else
-            Logger::getInstance()->write("[%s] Failed to place execution hook on BLACKLISTED BLOCK 0x%08x - 0x%08x", source, address, address + size);
+            Logger::getInstance()->write(LOG_WARN, "[%s] Failed to place execution hook on BLACKLISTED BLOCK 0x%08x - 0x%08x", source, address, address + size);
     }
     else
     {
         auto it = this->executableBlocks.findTracked(address, size);
         if (it == this->executableBlocks.nullMarker())
-            Logger::getInstance()->write("[%s] No need to hook block 0x%08x - 0x%08x", source, address, address + size);
+            Logger::getInstance()->write(LOG_INFO, "[%s] No need to hook block 0x%08x - 0x%08x", source, address, address + size);
     }
 
     return _oldProtection;
@@ -284,7 +284,7 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
         return ret;
 
     if (ret == 0 && this->hooksReady)
-        Logger::getInstance()->write("NtProtectVirtualMemory(TargetPID %d, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", GetProcessId(process), (DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, OldProtection);
+        Logger::getInstance()->write(LOG_INFO, "NtProtectVirtualMemory(TargetPID %d, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", GetProcessId(process), (DWORD)*baseAddress, (DWORD)*numberOfBytes, newProtection, OldProtection);
 
     if (ret == 0 && this->hooksReady && this->isSelfProcess(process))
     {
@@ -299,12 +299,12 @@ NTSTATUS UnpackingEngine::onNtProtectVirtualMemory(HANDLE process, PVOID* baseAd
 NTSTATUS UnpackingEngine::onNtWriteVirtualMemory(HANDLE process, PVOID baseAddress, PVOID buffer, ULONG numberOfBytes, PULONG numberOfBytesWritten)
 {
     if (this->hooksReady)
-        Logger::getInstance()->write("PRE-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x)\n", GetProcessId(process), baseAddress, numberOfBytes);
+        Logger::getInstance()->write(LOG_INFO, "PRE-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x)\n", GetProcessId(process), baseAddress, numberOfBytes);
 
     auto ret = this->origNtWriteVirtualMemory(process, baseAddress, buffer, numberOfBytes, numberOfBytesWritten);
 
     if (this->hooksReady)
-        Logger::getInstance()->write("PST-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x) RET: 0x%08x\n", GetProcessId(process), baseAddress, (numberOfBytesWritten) ? *numberOfBytesWritten : numberOfBytes, ret);
+        Logger::getInstance()->write(LOG_INFO, "PST-NtWriteVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x) RET: 0x%08x\n", GetProcessId(process), baseAddress, (numberOfBytesWritten) ? *numberOfBytesWritten : numberOfBytes, ret);
 
     if (ret == 0 && this->hooksReady)
     {
@@ -328,12 +328,12 @@ BOOL WINAPI UnpackingEngine::onCreateProcessInternalW(
     if ((dwCreationFlags & CREATE_SUSPENDED) != CREATE_SUSPENDED)
     {
         /* the process wasnt initially suspended, so we can inject right away */
-        Logger::getInstance()->write("Propogating into process %d from CreateProcessInternalW() hook.\n", lpProcessInformation->dwProcessId);
+        Logger::getInstance()->write(LOG_INFO, "Propogating into process %d from CreateProcessInternalW() hook.\n", lpProcessInformation->dwProcessId);
         hooks->injectIntoProcess(lpProcessInformation->hProcess, L"PackerAttackerHook.dll");
-        Logger::getInstance()->write("Propogation into process %d from CreateProcessInternalW() hook COMPLETE!\n", lpProcessInformation->dwProcessId);
+        Logger::getInstance()->write(LOG_INFO, "Propogation into process %d from CreateProcessInternalW() hook COMPLETE!\n", lpProcessInformation->dwProcessId);
 
         if (ResumeThread(lpProcessInformation->hThread) == -1)
-            Logger::getInstance()->write("Failed to resume process! Thread %d\n", lpProcessInformation->dwThreadId);
+            Logger::getInstance()->write(LOG_ERROR, "Failed to resume process! Thread %d\n", lpProcessInformation->dwThreadId);
     }
     else
     {
@@ -349,7 +349,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtCreateThread(
     PCLIENT_ID ClientId, PCONTEXT ThreadContext, PINITIAL_TEB InitialTeb, BOOLEAN CreateSuspended)
 {
     if (this->hooksReady)
-        Logger::getInstance()->write("NtCreateThread(TargetPID %d, Entry 0x%08x)\n", GetProcessId(ProcessHandle), ThreadContext->Eip);
+        Logger::getInstance()->write(LOG_INFO, "NtCreateThread(TargetPID %d, Entry 0x%08x)\n", GetProcessId(ProcessHandle), ThreadContext->Eip);
 
     if (this->hooksReady)
     {
@@ -382,13 +382,13 @@ NTSTATUS WINAPI UnpackingEngine::onNtMapViewOfSection(
     PLARGE_INTEGER SectionOffset, PULONG ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Protect)
 {
     if (this->hooksReady)
-        Logger::getInstance()->write("PRE-NtMapViewOfSection(TargetPID %d, Address 0x%08x, Size 0x%08x)\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (DWORD)*ViewSize);
+        Logger::getInstance()->write(LOG_INFO, "PRE-NtMapViewOfSection(TargetPID %d, Address 0x%08x, Size 0x%08x)\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (DWORD)*ViewSize);
 
     auto ret = this->origNtMapViewOfSection(SectionHandle, ProcessHandle, BaseAddress, ZeroBits, CommitSize,
                                             SectionOffset, ViewSize, InheritDisposition, AllocationType, Protect);
 
     if (this->hooksReady)
-        Logger::getInstance()->write("PST-NtMapViewOfSection(TargetPID %d, Address is 0x%08x, Size 0x%08x) RET: 0x%08x\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (DWORD)*ViewSize, ret);
+        Logger::getInstance()->write(LOG_INFO, "PST-NtMapViewOfSection(TargetPID %d, Address is 0x%08x, Size 0x%08x) RET: 0x%08x\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (DWORD)*ViewSize, ret);
 
     if (ret == 0 && this->hooksReady)
     {
@@ -406,7 +406,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtMapViewOfSection(
                 this->dumpMemoryBlock(fileName, bytesRead, (const unsigned char*)buffer);
             }
             else
-                Logger::getInstance()->write("Failed to ReadProcessMemory() from NtMapViewOfSection() hook! (Address is 0x%08x, Size is 0x%08x) (PID is %d)\n", (DWORD)*BaseAddress, (DWORD)*ViewSize, GetProcessId(ProcessHandle));
+                Logger::getInstance()->write(LOG_ERROR, "Failed to ReadProcessMemory() from NtMapViewOfSection() hook! (Address is 0x%08x, Size is 0x%08x) (PID is %d)\n", (DWORD)*BaseAddress, (DWORD)*ViewSize, GetProcessId(ProcessHandle));
 
             delete [] buffer;
         }
@@ -421,15 +421,15 @@ NTSTATUS WINAPI UnpackingEngine::onNtResumeThread(HANDLE thread, PULONG suspendC
     if (this->suspendedThreads.find(threadId) != this->suspendedThreads.end())
     {
         auto targetPID = suspendedThreads[threadId];
-        Logger::getInstance()->write("Propogating into process %d from NtResumeThread() hook.\n", targetPID);
+        Logger::getInstance()->write(LOG_INFO, "Propogating into process %d from NtResumeThread() hook.\n", targetPID);
 
         auto targetHandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_CREATE_THREAD, FALSE, targetPID);
         if (targetHandle == INVALID_HANDLE_VALUE)
-            Logger::getInstance()->write("FAILED to open process %d from NtResumeThread() hook!\n", targetPID);
+            Logger::getInstance()->write(LOG_ERROR, "FAILED to open process %d from NtResumeThread() hook!\n", targetPID);
         else
         {
             hooks->injectIntoProcess(targetHandle, L"PackerAttackerHook.dll");
-            Logger::getInstance()->write("Propogation into process %d from NtResumeThread() hook COMPLETE!\n", targetPID);
+            Logger::getInstance()->write(LOG_INFO, "Propogation into process %d from NtResumeThread() hook COMPLETE!\n", targetPID);
         }
 
     }
@@ -439,7 +439,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtResumeThread(HANDLE thread, PULONG suspendC
 
 NTSTATUS WINAPI UnpackingEngine::onNtDelayExecution(BOOLEAN alertable, PLARGE_INTEGER time)
 {
-    Logger::getInstance()->write("Sleep call detected (Low part: %d, High part: %d).", time->LowPart, time->HighPart);
+    Logger::getInstance()->write(LOG_INFO, "Sleep call detected (Low part: %d, High part: %d).", time->LowPart, time->HighPart);
 
     return this->origNtDelayExecution(alertable, time);
 }
@@ -451,12 +451,12 @@ NTSTATUS WINAPI UnpackingEngine::onNtAllocateVirtualMemory(HANDLE ProcessHandle,
 
     this->inAllocationHook = true;
         if (this->hooksReady)
-            Logger::getInstance()->write("PRE-NtAllocateVirtualMemory(TargetPID %d, Address 0x%08x, Size 0x%08x, Protection 0x%08x)\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (DWORD)*RegionSize, Protect);
+            Logger::getInstance()->write(LOG_INFO, "PRE-NtAllocateVirtualMemory(TargetPID %d, Address 0x%08x, Size 0x%08x, Protection 0x%08x)\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (DWORD)*RegionSize, Protect);
 
         auto ret = this->origNtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
 
         if (this->hooksReady)
-            Logger::getInstance()->write("PST-NtAllocateVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x, Protection 0x%08x) RET: 0x%08x\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (RegionSize) ? *RegionSize : 0, Protect, ret);
+            Logger::getInstance()->write(LOG_INFO, "PST-NtAllocateVirtualMemory(TargetPID %d, Address 0x%08x, Count 0x%08x, Protection 0x%08x) RET: 0x%08x\n", GetProcessId(ProcessHandle), (DWORD)*BaseAddress, (RegionSize) ? *RegionSize : 0, Protect, ret);
 
 
         if (ret == 0 && this->hooksReady && this->isSelfProcess(ProcessHandle))
@@ -485,7 +485,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         auto it = this->writeablePEBlocks.findTracked(exceptionAddress, 1);
         if (it == this->writeablePEBlocks.nullMarker())
         {
-            Logger::getInstance()->write("STATUS_ACCESS_VIOLATION write on 0x%08x not treated as hook!", exceptionAddress);
+            Logger::getInstance()->write(LOG_WARN, "STATUS_ACCESS_VIOLATION write on 0x%08x not treated as hook!", exceptionAddress);
             return EXCEPTION_CONTINUE_SEARCH; /* we're not tracking the page */
         }
 
@@ -495,7 +495,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&it->startAddress, (PULONG)&it->size, PAGE_READWRITE, &_oldProtection);
         if (ret != 0)
         {
-            Logger::getInstance()->write("Failed to removed write hook on 0x%08x!", exceptionAddress);
+            Logger::getInstance()->write(LOG_ERROR, "Failed to removed write hook on 0x%08x!", exceptionAddress);
             return EXCEPTION_CONTINUE_SEARCH; /* couldn't set page back to regular protection, wtf? */
         }
 
@@ -503,7 +503,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         this->executableBlocks.startTracking(*it);
         this->writeablePEBlocks.stopTracking(it);
 
-        Logger::getInstance()->write("STATUS_ACCESS_VIOLATION write on 0x%08x triggered write hook!", exceptionAddress);
+        Logger::getInstance()->write(LOG_INFO, "STATUS_ACCESS_VIOLATION write on 0x%08x triggered write hook!", exceptionAddress);
 
         /* writing to the section should work now */
         return EXCEPTION_CONTINUE_EXECUTION;
@@ -524,13 +524,13 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
                 DWORD _address = exceptionAddress;
                 ULONG _size = 1;
                 auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&_address, (PULONG)&_size, PAGE_EXECUTE_READWRITE, &_oldProtection);
-                Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x (NOT A HOOK). Simulating DEP-lessness from 0x%08x to 0x%08x.", exceptionAddress, _address, _address + _size);
+                Logger::getInstance()->write(LOG_INFO, "STATUS_ACCESS_VIOLATION execute on 0x%08x (NOT A HOOK). Simulating DEP-lessness from 0x%08x to 0x%08x.", exceptionAddress, _address, _address + _size);
 
                 return EXCEPTION_CONTINUE_EXECUTION;
             }
             else
             {
-                Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x (NOT A HOOK). No need to simulate DEP-lessness.", exceptionAddress);
+                Logger::getInstance()->write(LOG_INFO, "STATUS_ACCESS_VIOLATION execute on 0x%08x (NOT A HOOK). No need to simulate DEP-lessness.", exceptionAddress);
                 return EXCEPTION_CONTINUE_SEARCH;
             }
         }
@@ -541,7 +541,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&it->startAddress, (PULONG)&it->size, (DWORD)it->neededProtection, &_oldProtection);
         if (ret != 0)
         {
-            Logger::getInstance()->write("Failed to removed execute hook on 0x%08x!", exceptionAddress);
+            Logger::getInstance()->write(LOG_ERROR, "Failed to removed execute hook on 0x%08x!", exceptionAddress);
             return EXCEPTION_CONTINUE_SEARCH; /* couldn't set page back to executable, wtf? */
         }
 
@@ -550,7 +550,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         this->dumpMemoryBlock(*it, exceptionAddress);
         this->executableBlocks.stopTracking(it);
 
-        Logger::getInstance()->write("STATUS_ACCESS_VIOLATION execute on 0x%08x triggered execute hook!", exceptionAddress);
+        Logger::getInstance()->write(LOG_INFO, "STATUS_ACCESS_VIOLATION execute on 0x%08x triggered execute hook!", exceptionAddress);
 
         /* execution should work now */
         return EXCEPTION_CONTINUE_EXECUTION;
@@ -619,22 +619,22 @@ long UnpackingEngine::onDeepException(PEXCEPTION_POINTERS info)
     auto sg = this->lock->enterWithScopeGuard();
     this->ignoreHooks(true);
 
-    Logger::getInstance()->write("POSSIBLE CRASH DETECTED!");
-    Logger::getInstance()->write("\t%s at 0x%08x", exceptionDesc, info->ExceptionRecord->ExceptionAddress);
-    Logger::getInstance()->write("\t%s", exceptionDesc);
-    Logger::getInstance()->write("Exception Params: %d", info->ExceptionRecord->NumberParameters);
+    Logger::getInstance()->write(LOG_ERROR, "POSSIBLE CRASH DETECTED!");
+    Logger::getInstance()->write(LOG_APPENDLINE, "\t%s at 0x%08x", exceptionDesc, info->ExceptionRecord->ExceptionAddress);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\t%s", exceptionDesc);
+    Logger::getInstance()->write(LOG_APPENDLINE, "Exception Params: %d", info->ExceptionRecord->NumberParameters);
     for (unsigned int i = 0; i < info->ExceptionRecord->NumberParameters; i++)
-        Logger::getInstance()->write("\t\tParam #%d: 0x%08x", i, info->ExceptionRecord->ExceptionInformation[i]);
-    Logger::getInstance()->write("\tEAX: 0x%08x", info->ContextRecord->Eax);
-    Logger::getInstance()->write("\tEBP: 0x%08x", info->ContextRecord->Ebp);
-    Logger::getInstance()->write("\tEBX: 0x%08x", info->ContextRecord->Ebx);
-    Logger::getInstance()->write("\tECX: 0x%08x", info->ContextRecord->Ecx);
-    Logger::getInstance()->write("\tEDI: 0x%08x", info->ContextRecord->Edi);
-    Logger::getInstance()->write("\tEDX: 0x%08x", info->ContextRecord->Edx);
-    Logger::getInstance()->write("\tESI: 0x%08x", info->ContextRecord->Esi);
-    Logger::getInstance()->write("\tESP: 0x%08x", info->ContextRecord->Esp);
-    Logger::getInstance()->write("\tEIP: 0x%08x", info->ContextRecord->Eip);
-    Logger::getInstance()->write("\tEFLAGS: 0x%08x", info->ContextRecord->EFlags);
+        Logger::getInstance()->write(LOG_APPENDLINE, "\t\tParam #%d: 0x%08x", i, info->ExceptionRecord->ExceptionInformation[i]);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tEAX: 0x%08x", info->ContextRecord->Eax);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tEBP: 0x%08x", info->ContextRecord->Ebp);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tEBX: 0x%08x", info->ContextRecord->Ebx);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tECX: 0x%08x", info->ContextRecord->Ecx);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tEDI: 0x%08x", info->ContextRecord->Edi);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tEDX: 0x%08x", info->ContextRecord->Edx);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tESI: 0x%08x", info->ContextRecord->Esi);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tESP: 0x%08x", info->ContextRecord->Esp);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tEIP: 0x%08x", info->ContextRecord->Eip);
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tEFLAGS: 0x%08x", info->ContextRecord->EFlags);
 
     DebugStackTracer stackTracer(
         [=](std::string line) -> void
@@ -657,12 +657,12 @@ long UnpackingEngine::onDeepException(PEXCEPTION_POINTERS info)
             {
                 replaceString(line, ": (filename not available)", "");
 		        replaceString(line, ": (function-name not available)", "");
-                Logger::getInstance()->write("\t\t%s", line.c_str());
+                Logger::getInstance()->write(LOG_APPENDLINE, "\t\t%s", line.c_str());
             }
         }
     );
 
-    Logger::getInstance()->write("\tStack Trace:");
+    Logger::getInstance()->write(LOG_APPENDLINE, "\tStack Trace:");
     stackTracer.ShowCallstack(GetCurrentThread(), info->ContextRecord);
     this->ignoreHooks(false);
 
