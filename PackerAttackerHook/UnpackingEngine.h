@@ -7,6 +7,8 @@
 #include <Windows.h>
 #include <map>
 
+
+/* used to define a hook */
 #define _HOOK_DEFINE_INTERNAL(reT, reTm, name, args, argnames) \
     typedef reT (reTm *_orig ## name) args; /* define the function prototype */ \
     _orig ## name orig ## name; /* create a pointer to the original function */ \
@@ -20,6 +22,7 @@
             return getInstance()->on ## name argnames; \
     }
 
+/* these are just "variadic" wrappers for the _HOOK_DEFINE_INTERNAL macro */
 #define HOOK_DEFINE_1(reT, reTm, name, arg1) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1), (a1));
 #define HOOK_DEFINE_2(reT, reTm, name, arg1, arg2) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2), (a1, a2));
 #define HOOK_DEFINE_3(reT, reTm, name, arg1, arg2, arg3) _HOOK_DEFINE_INTERNAL(reT, reTm, name, (arg1 a1, arg2 a2, arg3 a3), (a1, a2, a3));
