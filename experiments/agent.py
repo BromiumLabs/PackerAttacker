@@ -1,3 +1,8 @@
+"""
+This scripe should be run in the guest VM with The Packer Attacker in it.
+It's a server application waiting for connections from unpack.py
+"""
+
 import sys
 import os
 import subprocess

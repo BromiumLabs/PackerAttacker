@@ -1,3 +1,9 @@
+"""
+This script is supposed to be run from the host
+it will submit the file for unpacking to the VM armed
+with The Packer Attacker. It cummunicates with agent.py
+"""
+
 import sys
 import os
 import subprocess
