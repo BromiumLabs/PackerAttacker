@@ -1,7 +1,7 @@
 """
 This script is supposed to be run from the host
 it will submit the file for unpacking to the VM armed
-with The Packer Attacker. It cummunicates with agent.py
+with The Packer Attacker. It communicates to agent.py
 """
 
 import sys
