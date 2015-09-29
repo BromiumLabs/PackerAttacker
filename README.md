@@ -12,28 +12,25 @@ The Packer Attacker is a generic hidden code extractor for Windows malware. It s
 The Packer Attacker is based on Microsoft Detours.
 
 
-## Compilation:
+## Compilation
 
 Compile with Microsoft C++ 2010 and Detours library. You'll have two files:
 
-
-1) PackerAttackerHook.dll - unpacking engine
-
-2) PackerAttacker.exe - DLL injector that executes malware and injects PackerAttackerHook.dll
+1. PackerAttackerHook.dll - unpacking engine
+2. PackerAttacker.exe - DLL injector that executes malware and injects PackerAttackerHook.dll
 
 
-To set up the packer attacker:
+## Setting up
 
-1) Create folder C:\dumps - all the extracted hidden code will be saved there
-
-2) Put PackerAttacker.exe and PackerAttackerHook.dll to %PATH%
-
-3) If it's a clean machine you're going to need MSVC++ redistributable
+1. Create folder C:\dumps - all the extracted hidden code will be saved there
+2. Put PackerAttacker.exe and PackerAttackerHook.dll to %PATH%
+3. If it's a clean machine you're going to need MSVC++ redistributable
 
 
-Running the Packer Attacker:
+## Usage
 
 PackerAttacker.exe <malware.exe>
 
+## Misc
 
 Currently only PE EXE files are supported.
