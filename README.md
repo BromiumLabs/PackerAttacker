@@ -1,6 +1,7 @@
 # PackerAttacker
 
 The Packer Attacker is a generic hidden code extractor for Windows malware. It supports the following types of pacers:
+
 1) Running from heap
 2) Replaceing PE header
 3) Injecting in a process
