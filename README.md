@@ -1,6 +1,7 @@
 # PackerAttacker
 
 The Packer Attacker is a generic hidden code extractor for Windows malware. It supports the following types of pacers:
+
 1) Running from heap
 2) Replaceing PE header
 3) Injecting in a process
@@ -13,6 +14,7 @@ Compile with Microsoft C++ 2010 and Detours library. You'll have two files:
 
 1) PackerAttackerHook.dll - unpacking engine
 2) PackerAttacker.exe - DLL injector that executes malware and injects PackerAttackerHook.dll
+
 
 To set up the packer attacker:
 
