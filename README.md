@@ -9,6 +9,7 @@ The Packer Attacker is a generic hidden code extractor for Windows malware. It s
 3) Injecting in a process
 
 
+
 The Packer Attacker is based on Microsoft Detours.
 
 
