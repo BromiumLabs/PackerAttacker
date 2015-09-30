@@ -24,7 +24,7 @@ for arg in sys.argv:
 	if(set_port):
 		#set port to the command line argument
 		if(arg.isdigit()):
-			if(int(arg) >= 0  or int(arg) <= 65535):
+			if(int(arg) >= 0 and int(arg) <= 65535):
 				port = int(arg)
 				set_port = False
 				break
