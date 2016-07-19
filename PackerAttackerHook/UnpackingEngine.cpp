@@ -58,7 +58,10 @@ void UnpackingEngine::initialize()
     HOOK_GET_ORIG(this, "ntdll.dll", NtResumeThread);
     HOOK_GET_ORIG(this, "ntdll.dll", NtDelayExecution);
     HOOK_GET_ORIG(this, "ntdll.dll", NtAllocateVirtualMemory);
+	HOOK_GET_ORIG(this, "ntdll.dll", RtlDecompressBuffer);
     HOOK_GET_ORIG(this, "Kernel32.dll", CreateProcessInternalW);
+
+	
 
     Logger::getInstance()->write(LOG_INFO, "Finding original function addresses... DONE");
 
@@ -76,6 +79,7 @@ void UnpackingEngine::initialize()
         HOOK_SET(this, this->hooks, NtResumeThread);
         HOOK_SET(this, this->hooks, NtDelayExecution);
         HOOK_SET(this, this->hooks, NtAllocateVirtualMemory);
+		HOOK_SET(this, this->hooks, RtlDecompressBuffer);
         HOOK_SET(this, this->hooks, CreateProcessInternalW);
     });
 
@@ -364,7 +368,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtCreateThread(
                 auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&it->startAddress, (PULONG)&it->size, (DWORD)it->neededProtection, &_oldProtection);
                 if (ret == 0)
                 {
-                    /* dump the motherfucker and stop tracking it */
+                    /* dump the block and stop tracking it */
                     this->blacklistedBlocks.startTracking(*it);
                     this->dumpMemoryBlock(*it, ThreadContext->Eip);
                     this->executableBlocks.stopTracking(it);
@@ -465,6 +469,20 @@ NTSTATUS WINAPI UnpackingEngine::onNtAllocateVirtualMemory(HANDLE ProcessHandle,
     return ret;
 }
 
+NTSTATUS NTAPI UnpackingEngine::onRtlDecompressBuffer(USHORT CompressionFormat, PUCHAR UncompressedBuffer, ULONG UncompressedBufferSize, PUCHAR CompressedBuffer, ULONG CompressedBufferSize, PULONG FinalUncompressedSize){
+	Logger::getInstance()->write(LOG_INFO, "PRE-RtlDecompressBuffer (UncompressedBuffer: 0x%x)", (DWORD)UncompressedBuffer);
+	auto ret = this->origRtlDecompressBuffer(CompressionFormat, UncompressedBuffer, UncompressedBufferSize, CompressedBuffer, CompressedBufferSize, FinalUncompressedSize);
+	Logger::getInstance()->write(LOG_INFO, "PST-RtlDecompressBuffer (FinalUncompressedSize: 0x%x)", (DWORD)UncompressedBuffer);
+
+	char fileName[MAX_PATH];
+	DWORD PID = GetCurrentProcessId();
+
+	sprintf(fileName, "C:\\dumps\\[%d]_%d_0x%08x_to_0x%08x.RDB.DMP", PID, GetTickCount(), UncompressedBuffer, UncompressedBuffer + *FinalUncompressedSize);
+	this->dumpMemoryBlock(fileName, *FinalUncompressedSize, UncompressedBuffer);
+
+	return ret;
+}
+
 long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
 {
     // ref: https://msdn.microsoft.com/en-us/library/windows/desktop/aa363082(v=vs.85).aspx
@@ -494,7 +512,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
         auto ret = this->origNtProtectVirtualMemory(GetCurrentProcess(), (PVOID*)&it->startAddress, (PULONG)&it->size, PAGE_READWRITE, &_oldProtection);
         if (ret != 0)
         {
-            Logger::getInstance()->write(LOG_ERROR, "Failed to removed write hook on 0x%08x!", exceptionAddress);
+            Logger::getInstance()->write(LOG_ERROR, "Failed to remove write hook on 0x%08x!", exceptionAddress);
             return EXCEPTION_CONTINUE_SEARCH; /* couldn't set page back to regular protection, wtf? */
         }
 
@@ -544,7 +562,7 @@ long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
             return EXCEPTION_CONTINUE_SEARCH; /* couldn't set page back to executable, wtf? */
         }
 
-        /* dump the motherfucker and stop tracking it */
+        /* dump the block and stop tracking it */
         this->blacklistedBlocks.startTracking(*it);
         this->dumpMemoryBlock(*it, exceptionAddress);
         this->executableBlocks.stopTracking(it);

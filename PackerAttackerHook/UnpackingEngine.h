@@ -104,6 +104,9 @@ private:
     /* NtAllocateVirtualMemory hook */
     HOOK_DEFINE_6(NTSTATUS, NTAPI, NtAllocateVirtualMemory, HANDLE, PVOID*, ULONG, PULONG, ULONG, ULONG);
 
+
+	HOOK_DEFINE_6(NTSTATUS, NTAPI, RtlDecompressBuffer, USHORT, PUCHAR, ULONG, PUCHAR, ULONG, PULONG);
+
     /* exception handler for hooking execution on tracked pages */
     long onShallowException(PEXCEPTION_POINTERS info);
     static long __stdcall _onShallowException(PEXCEPTION_POINTERS info)
