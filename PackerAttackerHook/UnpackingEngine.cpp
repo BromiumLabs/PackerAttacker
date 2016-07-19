@@ -472,7 +472,7 @@ NTSTATUS WINAPI UnpackingEngine::onNtAllocateVirtualMemory(HANDLE ProcessHandle,
 NTSTATUS NTAPI UnpackingEngine::onRtlDecompressBuffer(USHORT CompressionFormat, PUCHAR UncompressedBuffer, ULONG UncompressedBufferSize, PUCHAR CompressedBuffer, ULONG CompressedBufferSize, PULONG FinalUncompressedSize){
 	Logger::getInstance()->write(LOG_INFO, "PRE-RtlDecompressBuffer (UncompressedBuffer: 0x%x)", (DWORD)UncompressedBuffer);
 	auto ret = this->origRtlDecompressBuffer(CompressionFormat, UncompressedBuffer, UncompressedBufferSize, CompressedBuffer, CompressedBufferSize, FinalUncompressedSize);
-	Logger::getInstance()->write(LOG_INFO, "PST-RtlDecompressBuffer (FinalUncompressedSize: 0x%x)", (DWORD)UncompressedBuffer);
+	Logger::getInstance()->write(LOG_INFO, "PST-RtlDecompressBuffer (FinalUncompressedSize: 0x%x)", UncompressedBufferSize);
 
 	char fileName[MAX_PATH];
 	DWORD PID = GetCurrentProcessId();
