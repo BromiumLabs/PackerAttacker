@@ -58,11 +58,10 @@ void UnpackingEngine::initialize()
     HOOK_GET_ORIG(this, "ntdll.dll", NtResumeThread);
     HOOK_GET_ORIG(this, "ntdll.dll", NtDelayExecution);
     HOOK_GET_ORIG(this, "ntdll.dll", NtAllocateVirtualMemory);
-	HOOK_GET_ORIG(this, "ntdll.dll", RtlDecompressBuffer);
+    HOOK_GET_ORIG(this, "ntdll.dll", RtlDecompressBuffer);
     HOOK_GET_ORIG(this, "Kernel32.dll", CreateProcessInternalW);
 
-	
-
+    
     Logger::getInstance()->write(LOG_INFO, "Finding original function addresses... DONE");
 
     this->startTrackingPEMemoryBlocks();
@@ -79,7 +78,7 @@ void UnpackingEngine::initialize()
         HOOK_SET(this, this->hooks, NtResumeThread);
         HOOK_SET(this, this->hooks, NtDelayExecution);
         HOOK_SET(this, this->hooks, NtAllocateVirtualMemory);
-		HOOK_SET(this, this->hooks, RtlDecompressBuffer);
+        HOOK_SET(this, this->hooks, RtlDecompressBuffer);
         HOOK_SET(this, this->hooks, CreateProcessInternalW);
     });
 
@@ -470,17 +469,17 @@ NTSTATUS WINAPI UnpackingEngine::onNtAllocateVirtualMemory(HANDLE ProcessHandle,
 }
 
 NTSTATUS NTAPI UnpackingEngine::onRtlDecompressBuffer(USHORT CompressionFormat, PUCHAR UncompressedBuffer, ULONG UncompressedBufferSize, PUCHAR CompressedBuffer, ULONG CompressedBufferSize, PULONG FinalUncompressedSize){
-	Logger::getInstance()->write(LOG_INFO, "PRE-RtlDecompressBuffer (UncompressedBuffer: 0x%x)", (DWORD)UncompressedBuffer);
-	auto ret = this->origRtlDecompressBuffer(CompressionFormat, UncompressedBuffer, UncompressedBufferSize, CompressedBuffer, CompressedBufferSize, FinalUncompressedSize);
-	Logger::getInstance()->write(LOG_INFO, "PST-RtlDecompressBuffer (FinalUncompressedSize: 0x%x)", UncompressedBufferSize);
+    Logger::getInstance()->write(LOG_INFO, "PRE-RtlDecompressBuffer (UncompressedBuffer: 0x%x)", (DWORD)UncompressedBuffer);
+    auto ret = this->origRtlDecompressBuffer(CompressionFormat, UncompressedBuffer, UncompressedBufferSize, CompressedBuffer, CompressedBufferSize, FinalUncompressedSize);
+    Logger::getInstance()->write(LOG_INFO, "PST-RtlDecompressBuffer (FinalUncompressedSize: 0x%x)", UncompressedBufferSize);
 
-	char fileName[MAX_PATH];
-	DWORD PID = GetCurrentProcessId();
+    char fileName[MAX_PATH];
+    DWORD PID = GetCurrentProcessId();
 
-	sprintf(fileName, "C:\\dumps\\[%d]_%d_0x%08x_to_0x%08x.RDB.DMP", PID, GetTickCount(), UncompressedBuffer, UncompressedBuffer + *FinalUncompressedSize);
-	this->dumpMemoryBlock(fileName, *FinalUncompressedSize, UncompressedBuffer);
+    sprintf(fileName, "C:\\dumps\\[%d]_%d_0x%08x_to_0x%08x.RDB.DMP", PID, GetTickCount(), UncompressedBuffer, UncompressedBuffer + *FinalUncompressedSize);
+    this->dumpMemoryBlock(fileName, *FinalUncompressedSize, UncompressedBuffer);
 
-	return ret;
+    return ret;
 }
 
 long UnpackingEngine::onShallowException(PEXCEPTION_POINTERS info)
