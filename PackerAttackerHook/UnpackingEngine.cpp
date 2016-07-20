@@ -658,22 +658,22 @@ long UnpackingEngine::onDeepException(PEXCEPTION_POINTERS info)
         {
             bool ignore =
                     (line.find("ERROR:") != std::string::npos) ||
-					(line.find("SymType:") != std::string::npos)||
-					(line.find("SymInit:") != std::string::npos)||
-					(line.find("OS-Version:") != std::string::npos);
+                    (line.find("SymType:") != std::string::npos)||
+                    (line.find("SymInit:") != std::string::npos)||
+                    (line.find("OS-Version:") != std::string::npos);
 
             auto replaceString = [=](std::string& text, const std::string key, const std::string value) -> void
             {
-	            if (value.find(key) != std::string::npos)
-		            return;
-	            for (std::string::size_type keyStart = text.find(key); keyStart != std::string::npos; keyStart = text.find(key))
-		            text.replace(keyStart, key.size(), value);
+                if (value.find(key) != std::string::npos)
+                    return;
+                for (std::string::size_type keyStart = text.find(key); keyStart != std::string::npos; keyStart = text.find(key))
+                text.replace(keyStart, key.size(), value);
             };
 
-        	if (!ignore)
+            if (!ignore)
             {
                 replaceString(line, ": (filename not available)", "");
-		        replaceString(line, ": (function-name not available)", "");
+                replaceString(line, ": (function-name not available)", "");
                 Logger::getInstance()->write(LOG_APPENDLINE, "\t\t%s", line.c_str());
             }
         }
