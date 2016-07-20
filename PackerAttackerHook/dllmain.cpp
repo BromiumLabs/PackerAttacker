@@ -2,11 +2,6 @@
 #include "UnpackingEngine.h"
 
 
-DWORD WINAPI initThread(LPVOID lpParameter)
-{
-    UnpackingEngine::getInstance()->initialize();
-    return 0;
-}
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,

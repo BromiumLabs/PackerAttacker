@@ -103,6 +103,8 @@ private:
     HOOK_DEFINE_2(NTSTATUS, NTAPI, NtDelayExecution, BOOLEAN, PLARGE_INTEGER);
     /* NtAllocateVirtualMemory hook */
     HOOK_DEFINE_6(NTSTATUS, NTAPI, NtAllocateVirtualMemory, HANDLE, PVOID*, ULONG, PULONG, ULONG, ULONG);
+    /* NtRtlDecompressBuffer hook*/
+    HOOK_DEFINE_6(NTSTATUS, NTAPI, RtlDecompressBuffer, USHORT, PUCHAR, ULONG, PUCHAR, ULONG, PULONG);
 
     /* exception handler for hooking execution on tracked pages */
     long onShallowException(PEXCEPTION_POINTERS info);
