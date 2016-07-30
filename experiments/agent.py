@@ -16,7 +16,37 @@ from bottle import route, run, SimpleTemplate, static_file, post, request
 dumps_folder = 'C:\\dumps'
 archive_name = 'dumps.zip'
 port = 9000
+set_port = False
+usage_printed  = False
 ################################
+
+for arg in sys.argv:
+	if(set_port):
+		#set port to the command line argument
+		if(arg.isdigit()):
+			if(int(arg) >= 0 and int(arg) <= 65535):
+				port = int(arg)
+				set_port = False
+				break
+			else:
+				print('-p value must be an integer 0-65535')
+				exit()
+		else:
+			print('-p value must be an integer')
+			exit()
+		continue
+		
+	elif(arg == '-p'):
+		#Check for setting port argument
+		set_port = True
+		continue
+	
+	else:
+		if(usage_printed == False and arg != sys.argv[0]):
+			print('Usage: agent.py -p [port number]')
+		usage_printed = True
+		continue
+
 
 def zipdir(path, zip):
     for root, dirs, files in os.walk(path):
