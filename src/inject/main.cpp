@@ -60,7 +60,7 @@ bool executeProcessAndInjectDll(wchar_t* fileName)
         return false;
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+int _tmain(int argc, wchar_t* argv[])
 {
     if (argc != 2)
     {

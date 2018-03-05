@@ -190,7 +190,7 @@ void UnpackingEngine::dumpRemoteMemoryBlocks()
 void UnpackingEngine::dumpMemoryBlock(TrackedMemoryBlock block, DWORD ep)
 {
     char fileName[MAX_PATH];
-    sprintf(fileName, "C:\\dumps\\[%d]_%d_0x%08x_to_0x%08x_EP_0x%08x_IDX_%d.DMP", this->processID, GetTickCount(), block.startAddress, block.endAddress, ep, ep - block.startAddress);
+    sprintf(fileName, "C:\\dumps\\[%d]_%d_0x%p_to_0x%p_EP_0x%p_IDX_%d.DMP", this->processID, GetTickCount(), block.startAddress, block.endAddress, ep, ep - block.startAddress);
 
     this->dumpMemoryBlock(fileName, block.size, (const unsigned char*)block.startAddress);
 }
@@ -476,7 +476,7 @@ NTSTATUS NTAPI UnpackingEngine::onRtlDecompressBuffer(USHORT CompressionFormat, 
     char fileName[MAX_PATH];
     DWORD PID = GetCurrentProcessId();
 
-    sprintf(fileName, "C:\\dumps\\[%d]_%d_0x%08x_to_0x%08x.RDB.DMP", PID, GetTickCount(), UncompressedBuffer, UncompressedBuffer + *FinalUncompressedSize);
+    sprintf(fileName, "C:\\dumps\\[%d]_%d_0x%p_to_0x%p.RDB.DMP", PID, GetTickCount(), UncompressedBuffer, UncompressedBuffer + *FinalUncompressedSize);
     this->dumpMemoryBlock(fileName, *FinalUncompressedSize, UncompressedBuffer);
 
     return ret;

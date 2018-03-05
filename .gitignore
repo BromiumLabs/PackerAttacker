@@ -42,3 +42,8 @@
 ipch/*
 Debug/*
 Release/*
+build/
+deps/detours/lib.X86/*
+deps/detours/bin.X86/*
+deps/detours/src/obj.X86/*
+deps/detours/include/*
